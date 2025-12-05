@@ -219,6 +219,18 @@
         <div class="gradient-border rounded-xl p-6 mb-6">
             <h2 class="text-2xl font-bold mb-4 text-gray-800">🤖 Sélectionner les IA Concurrentes</h2>
             
+            <!-- Info Copy Trading -->
+            <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4 mb-4">
+                <p class="text-blue-800 font-bold mb-2">🔄 COPY TRADING DISPONIBLE</p>
+                <ul class="text-sm text-blue-700 space-y-1">
+                    <li>• Cliquez sur <strong>"📋 Copy"</strong> pour copier automatiquement les trades d'une IA</li>
+                    <li>• Vous payez la même taxe (0.001 BNB) + gas fees pour vos trades copiés</li>
+                    <li>• Les achats/ventes sont exécutés en même temps que l'IA</li>
+                    <li>• Vous gardez le contrôle total et pouvez désactiver à tout moment</li>
+                    <li>• ⚠️ Assurez-vous d'avoir assez de capital USDT et BNB</li>
+                </ul>
+            </div>
+            
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="aiCards">
                 <!-- Les cartes IA seront générées par JS -->
             </div>
@@ -319,6 +331,14 @@
                 grok: false
             },
             
+            // Copy Trading
+            copyTrading: {
+                claude: false,
+                gemini: false,
+                chatgpt: false,
+                grok: false
+            },
+            
             aiStats: {
                 claude: { trades: 0, profit: 0, wins: 0, losses: 0 },
                 gemini: { trades: 0, profit: 0, wins: 0, losses: 0 },
@@ -327,6 +347,14 @@
             },
             
             positions: {
+                claude: null,
+                gemini: null,
+                chatgpt: null,
+                grok: null
+            },
+            
+            // Positions utilisateur (copy trading)
+            userPositions: {
                 claude: null,
                 gemini: null,
                 chatgpt: null,
@@ -358,15 +386,21 @@
 
             const container = document.getElementById('aiCards');
             container.innerHTML = ais.map(ai => `
-                <div class="ai-card rounded-xl p-5 cursor-pointer" onclick="toggleAI('${ai.id}')" id="card-${ai.id}">
+                <div class="ai-card rounded-xl p-5" id="card-${ai.id}">
                     <div class="flex items-center justify-between mb-3">
                         <div class="flex items-center gap-2">
                             <span class="text-3xl">${ai.icon}</span>
                             <h3 class="text-xl font-bold text-gray-800">${ai.name}</h3>
                         </div>
-                        <input type="checkbox" id="ai-${ai.id}" class="w-5 h-5">
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleCopyTrading('${ai.id}')" id="copy-btn-${ai.id}" class="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-xs font-bold transition-all" title="Copier les trades de cette IA">
+                                📋 Copy
+                            </button>
+                            <input type="checkbox" id="ai-${ai.id}" onclick="toggleAI('${ai.id}')" class="w-5 h-5 cursor-pointer">
+                        </div>
                     </div>
                     <p class="text-sm text-gray-600 mb-3">${ai.desc}</p>
+                    <div id="copy-status-${ai.id}" class="mb-2 text-xs font-bold" style="display: none;"></div>
                     <div class="space-y-2 text-xs">
                         <div class="flex justify-between">
                             <span class="text-gray-600">Trades:</span>
@@ -670,6 +704,45 @@
             }
         }
 
+        function toggleCopyTrading(aiName) {
+            if (!state.isConnected) {
+                alert('❌ Connectez d\'abord votre wallet pour activer le copy trading');
+                return;
+            }
+
+            state.copyTrading[aiName] = !state.copyTrading[aiName];
+            
+            const btn = document.getElementById(`copy-btn-${aiName}`);
+            const statusDiv = document.getElementById(`copy-status-${aiName}`);
+            
+            if (state.copyTrading[aiName]) {
+                btn.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                btn.classList.add('bg-green-500', 'hover:bg-green-600');
+                btn.innerHTML = '✅ Copy ON';
+                
+                statusDiv.style.display = 'block';
+                statusDiv.className = 'mb-2 text-xs font-bold text-green-600';
+                statusDiv.textContent = '🔄 Copy Trading ACTIF - Vous copiez automatiquement les trades';
+                
+                addLog('user', '🔄 COPY TRADING', `Vous copiez maintenant ${aiName.toUpperCase()}`);
+                
+                // Activer l'IA automatiquement si pas déjà fait
+                if (!state.activeAIs[aiName]) {
+                    state.activeAIs[aiName] = true;
+                    document.getElementById(`ai-${aiName}`).checked = true;
+                    document.getElementById(`card-${aiName}`).classList.add('active');
+                }
+            } else {
+                btn.classList.remove('bg-green-500', 'hover:bg-green-600');
+                btn.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                btn.innerHTML = '📋 Copy';
+                
+                statusDiv.style.display = 'none';
+                
+                addLog('user', '⏸️ COPY TRADING', `Copy trading de ${aiName.toUpperCase()} désactivé`);
+            }
+        }
+
         // ============= COMPÉTITION =============
         async function startCompetition() {
             const activeCount = Object.values(state.activeAIs).filter(v => v).length;
@@ -785,12 +858,52 @@
                     `${tradeAmount.toFixed(2)} USDT → ${tokensAmount.toFixed(6)} tokens @ $${buyPrice.toFixed(2)} (taxe payée)`
                 );
                 
+                // COPY TRADING - Si l'utilisateur copie cette IA
+                if (state.copyTrading[aiName]) {
+                    await executeCopyTradeBuy(aiName, buyPrice, tradeAmount);
+                }
+                
                 await updateBalances();
                 updateAIStats(aiName);
                 
             } catch (error) {
                 console.error(`❌ ${aiName} - Erreur achat:`, error);
                 addLog(aiName, '❌ ERREUR ACHAT', error.message);
+            }
+        }
+
+        async function executeCopyTradeBuy(aiName, buyPrice, tradeAmount) {
+            addLog('user', '🔄 COPY TRADE ACHAT', `Copie de l'achat de ${aiName.toUpperCase()}...`);
+            
+            try {
+                // Vérifier solde utilisateur
+                if (tradeAmount > state.balances.usdt) {
+                    addLog('user', '⚠️ COPY TRADE', `Solde insuffisant pour copier (besoin: ${tradeAmount.toFixed(2)} USDT)`);
+                    return;
+                }
+                
+                // Payer la taxe pour l'utilisateur
+                await payTradeFee('user');
+                
+                // Copier le trade
+                const tokensAmount = tradeAmount / buyPrice;
+                
+                state.userPositions[aiName] = {
+                    entryPrice: buyPrice,
+                    amount: tradeAmount,
+                    tokensAmount: tokensAmount,
+                    entryTime: Date.now()
+                };
+                
+                addLog('user', '✅ COPY TRADE ACHAT', 
+                    `Vous avez copié ${aiName.toUpperCase()} : ${tradeAmount.toFixed(2)} USDT → ${tokensAmount.toFixed(6)} tokens @ $${buyPrice.toFixed(2)}`
+                );
+                
+                await updateBalances();
+                
+            } catch (error) {
+                console.error('❌ Erreur copy trade achat:', error);
+                addLog('user', '❌ COPY TRADE ÉCHOUÉ', error.message);
             }
         }
 
@@ -831,12 +944,50 @@
                 
                 state.positions[aiName] = null;
                 
+                // COPY TRADING - Si l'utilisateur copie cette IA
+                if (state.copyTrading[aiName] && state.userPositions[aiName]) {
+                    await executeCopyTradeSell(aiName, sellPrice);
+                }
+                
                 await updateBalances();
                 updateAIStats(aiName);
                 
             } catch (error) {
                 console.error(`❌ ${aiName} - Erreur vente:`, error);
                 addLog(aiName, '❌ ERREUR VENTE', error.message);
+            }
+        }
+
+        async function executeCopyTradeSell(aiName, sellPrice) {
+            const userPosition = state.userPositions[aiName];
+            if (!userPosition) return;
+            
+            addLog('user', '🔄 COPY TRADE VENTE', `Copie de la vente de ${aiName.toUpperCase()}...`);
+            
+            try {
+                // Payer la taxe pour l'utilisateur
+                await payTradeFee('user');
+                
+                // Copier la vente
+                const sellValue = userPosition.tokensAmount * sellPrice;
+                const profit = sellValue - userPosition.amount;
+                const profitPercent = (profit / userPosition.amount) * 100;
+                const holdTime = Math.floor((Date.now() - userPosition.entryTime) / 1000);
+                
+                addLog('user', '✅ COPY TRADE VENTE', 
+                    `Vous avez copié ${aiName.toUpperCase()} : ${userPosition.tokensAmount.toFixed(6)} tokens → ${sellValue.toFixed(2)} USDT`
+                );
+                addLog('user', '💰 VOTRE PROFIT', 
+                    `${profit > 0 ? '+' : ''}${profit.toFixed(2)} USDT (${profitPercent > 0 ? '+' : ''}${profitPercent.toFixed(2)}%) | ${holdTime}s`
+                );
+                
+                state.userPositions[aiName] = null;
+                
+                await updateBalances();
+                
+            } catch (error) {
+                console.error('❌ Erreur copy trade vente:', error);
+                addLog('user', '❌ COPY TRADE ÉCHOUÉ', error.message);
             }
         }
 
@@ -912,7 +1063,8 @@
                 gemini: '💎', 
                 chatgpt: '🚀',
                 grok: '⚡',
-                system: '⚙️'
+                system: '⚙️',
+                user: '👤'
             };
             
             const html = state.tradeLogs.map(log => `
