@@ -906,13 +906,24 @@
                 return;
             }
             
-            const estimatedTaxes = activeCount * 0.01;
-            if (state.balances.bnb < estimatedTaxes) {
-                alert(`⚠️ BNB faible. Besoin: ${estimatedTaxes.toFixed(3)} BNB pour les taxes`);
-                if (!confirm('Continuer quand même ?')) return;
+            // Calcul réaliste : 0.001 BNB taxe + ~0.003 BNB gas par trade
+            const bnbPerTrade = 0.004; // 0.001 taxe + 0.003 gas
+            const minBnbNeeded = bnbPerTrade * 2; // Au moins 2 trades possibles
+            const estimatedBnbForSession = bnbPerTrade * 5 * activeCount; // 5 trades par IA
+            
+            if (state.balances.bnb < minBnbNeeded) {
+                alert(`❌ BNB INSUFFISANT\n\nVous avez: ${state.balances.bnb.toFixed(4)} BNB\nMinimum requis: ${minBnbNeeded.toFixed(4)} BNB\n\nAjoutez au moins ${(minBnbNeeded - state.balances.bnb).toFixed(4)} BNB pour trader.`);
+                return;
             }
             
-            if (!confirm(`🔴 DÉMARRER LIVE TRADING ?\n\n- ${activeCount} IA actives\n- Capital: $${state.capital}\n- Risque de perte totale\n\nCONFIRMER ?`)) {
+            // Avertissement si BNB limité
+            const possibleTrades = Math.floor(state.balances.bnb / bnbPerTrade);
+            if (state.balances.bnb < estimatedBnbForSession) {
+                const warning = `⚠️ BNB LIMITÉ\n\nVous avez: ${state.balances.bnb.toFixed(4)} BNB\nTrades possibles: ~${possibleTrades}\nRecommandé pour ${activeCount} IA: ${estimatedBnbForSession.toFixed(4)} BNB\n\n⚠️ Le bot s'arrêtera quand le BNB sera épuisé.\n\nContinuer quand même ?`;
+                if (!confirm(warning)) return;
+            }
+            
+            if (!confirm(`🔴 DÉMARRER LIVE TRADING ?\n\n- ${activeCount} IA actives\n- Capital: $${state.capital}\n- Trades possibles: ~${possibleTrades}\n- Risque de perte totale\n\nCONFIRMER ?`)) {
                 return;
             }
             
@@ -1071,6 +1082,15 @@
                 return;
             }
             
+            // Vérifier BNB avant de trader
+            if (state.balances.bnb < 0.004) {
+                addLog('system', '❌ BNB ÉPUISÉ', `Seulement ${state.balances.bnb.toFixed(4)} BNB restant`);
+                addLog('system', '🛑 AUTO-STOP', 'Arrêt automatique du bot');
+                stopCompetition();
+                alert(`⛽ BNB ÉPUISÉ !\n\nIl ne reste que ${state.balances.bnb.toFixed(4)} BNB.\nLe bot a été arrêté automatiquement.\n\nAjoutez du BNB pour continuer.`);
+                return;
+            }
+            
             try {
                 await payTradeFee(aiName);
                 
@@ -1099,6 +1119,15 @@
             if (!state.positions[aiName]) return;
             
             const position = state.positions[aiName];
+            
+            // Vérifier BNB avant de vendre
+            if (state.balances.bnb < 0.004) {
+                addLog('system', '❌ BNB ÉPUISÉ', `Impossible de vendre - ${state.balances.bnb.toFixed(4)} BNB`);
+                addLog('system', '🛑 AUTO-STOP', 'Arrêt automatique du bot');
+                stopCompetition();
+                alert(`⛽ BNB ÉPUISÉ !\n\nImpossible de vendre la position.\nAjoutez du BNB pour finaliser les trades.`);
+                return;
+            }
             
             try {
                 await payTradeFee(aiName);
