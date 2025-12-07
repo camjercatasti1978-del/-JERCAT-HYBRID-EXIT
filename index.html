@@ -64,27 +64,15 @@
                         <span>🔑</span>
                         <span>Clé Privée</span>
                     </button>
-                </div>
-            </div>
-        </div>
-<div class="flex gap-2 flex-wrap">
-                    <button onclick="openJercatWallet()" class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all shadow-lg" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); color: #000; box-shadow: 0 0 20px rgba(245, 158, 11, 0.4);">
-                        <span>🤖</span>
-                        <span>JERCAT Wallet</span>
-                    </button>
-                    <button onclick="connectWallet()" id="connectBtn" class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg">
-                        <span>👛</span>
-                        <span id="walletText">MetaMask</span>
-                    </button>
-                    <button onclick="togglePrivateKeyModal()" class="flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 shadow-lg">
-                        <span>🔑</span>
-                        <span>Clé Privée</span>
-                    </button>
                     <button onclick="disconnectWallet()" id="disconnectBtn" class="hidden flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg">
                         <span>🚪</span>
                         <span>Déconnecter</span>
                     </button>
-                </div>        <!-- Private Key Modal -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Private Key Modal -->
         <div id="privateKeyModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
             <div class="glass-effect rounded-2xl p-6 max-w-md w-full border-2 border-red-500/50">
                 <div class="flex justify-between items-center mb-4">
@@ -153,7 +141,7 @@
         </div>
 
         <!-- Crypto Selector -->
-        <div id="cryptoSelector" class="glass-effect rounded-xl p-6 mb-6 border border-gray-500">
+        <div id="cryptoSelector" class="glass-effect rounded-xl p-6 mb-6 border border-gray-500 hidden">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                     <label class="block text-sm text-gray-400 mb-2">Crypto</label>
@@ -203,7 +191,7 @@
         </div>
 
         <!-- Capital -->
-        <div id="capitalSection" class="glass-effect rounded-xl p-6 mb-6 border-2" style="border-color: #f59e0b;">
+        <div id="capitalSection" class="glass-effect rounded-xl p-6 mb-6 border-2 hidden" style="border-color: #f59e0b;">
             <h3 class="text-xl font-bold mb-4" style="color: #f59e0b;">💰 Capital (USDT)</h3>
             <div class="flex gap-4">
                 <input type="number" id="capitalInput" placeholder="Ex: 100" value="100" class="flex-1 glass-effect rounded-lg px-4 py-3 focus:outline-none border-2 border-gray-600 text-white">
@@ -214,7 +202,7 @@
         </div>
 
         <!-- Stats -->
-        <div id="statsCards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div id="statsCards" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6 hidden">
             <div class="glass-effect rounded-xl p-4 border-2" style="border-color: #f59e0b;">
                 <p class="text-xs text-gray-400">Capital</p>
                 <p class="text-2xl font-bold" style="color: #f59e0b;"><span id="capitalDisplay">0</span> USDT</p>
@@ -410,11 +398,11 @@
 
     <script>
         // ═══════════════════════════════════════════════════════════════
-        // 🤖 JERCAT HYBRID EXIT BOT - VERSION CORRIGÉE
+        // 🤖 JERCAT HYBRID EXIT BOT - VERSION COMPLÈTE
         // ═══════════════════════════════════════════════════════════════
 
-        const JERCAT_WALLET = '0x7C08b7E9862bd3826c0de1741a2d26770C39903d'; // Wallet JERCAT pour frais
-        const JERCAT_FEE_BNB = '0.001'; // Frais de 0.001 BNB par trade
+        const JERCAT_WALLET = '0x7C08b7E9862bd3826c0de1741a2d26770C39903d';
+        const JERCAT_FEE_BNB = '0.001';
 
         function openJercatWallet() {
             debugLog('🤖 Ouverture du JERCAT Secure Wallet...', 'success');
@@ -424,6 +412,46 @@
 
         function togglePrivateKeyModal() {
             document.getElementById('privateKeyModal').classList.toggle('hidden');
+        }
+
+        function disconnectWallet() {
+            if (state.botRunning) {
+                if (!confirm('⚠️ Le bot est en cours d\'exécution.\nVoulez-vous vraiment vous déconnecter ?')) {
+                    return;
+                }
+                stopBot();
+            }
+
+            state.account = null;
+            state.wallet = null;
+            state.provider = null;
+            state.isConnected = false;
+            state.connectionMethod = null;
+            state.jercatTrusted = false;
+            state.currentPosition = null;
+            state.positionTokens = 0;
+            state.maxProfitReached = 0;
+            state.lastProfitCheck = 0;
+
+            document.getElementById('connectBtn').style.background = '';
+            document.getElementById('connectBtn').style.color = '';
+            document.getElementById('connectBtn').className = 'flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 shadow-lg';
+            document.getElementById('walletText').textContent = 'MetaMask';
+            document.getElementById('disconnectBtn').classList.add('hidden');
+            
+            document.getElementById('walletStatus').innerHTML = '<span class="text-red-400">🔴 Non</span>';
+            document.getElementById('jercatStatus').innerHTML = '<span style="color: #f59e0b;">⏳ En attente...</span>';
+            document.getElementById('positionStatus').textContent = '⚪ None';
+
+            document.getElementById('cryptoSelector').classList.add('hidden');
+            document.getElementById('capitalSection').classList.add('hidden');
+            document.getElementById('statsCards').classList.add('hidden');
+
+            document.getElementById('toggleBotBtn').disabled = true;
+            document.getElementById('toggleBotBtn').className = 'flex items-center gap-2 px-6 py-3 rounded-xl font-semibold bg-gray-600 cursor-not-allowed';
+
+            debugLog('🚪 Déconnecté du wallet', 'warning', true);
+            alert('✅ Déconnexion réussie !');
         }
 
         const BSC_RPCS = [
@@ -457,15 +485,15 @@
             lastBuyPrice: 0,
             lastMacdHist: 0,
             positionAmount: 0,
-            positionTokens: 0, // 🔧 FIX: Quantité de tokens achetés
-            tokenDecimals: 18, // 🔧 FIX: Décimales du token tradé
+            positionTokens: 0,
+            tokenDecimals: 18,
             entryFees: 0,
             minProfitPct: 3.0,
             jercatTrusted: false,
             usdtBalance: 0,
             maxProfitReached: 0,
             lastProfitCheck: 0,
-            totalJercatFees: 0 // 🔧 FIX: Total des frais JERCAT payés
+            totalJercatFees: 0
         };
 
         function verifyRealMode() {
@@ -568,7 +596,7 @@
             
             const customSymbol = `CUSTOM_${state.customToken.symbol}`;
             state.selectedCrypto = customSymbol;
-            state.tokenDecimals = state.customToken.decimals; // 🔧 FIX
+            state.tokenDecimals = state.customToken.decimals;
             
             const sel = document.getElementById('cryptoSelect');
             const existingOption = Array.from(sel.options).find(opt => opt.value === customSymbol);
@@ -604,21 +632,18 @@
             return false;
         };
 
-        // 🔧 Système de logs optimisé avec limitation
         let logCount = 0;
         const MAX_LOGS_PER_MINUTE = 30;
         let lastLogReset = Date.now();
 
         function debugLog(msg, type = 'info', force = false) {
-            // Reset compteur toutes les minutes
             if (Date.now() - lastLogReset > 60000) {
                 logCount = 0;
                 lastLogReset = Date.now();
             }
 
-            // Limite les logs sauf si forcé (pour événements critiques)
             if (!force && logCount >= MAX_LOGS_PER_MINUTE) {
-                return; // Ignore les logs excessifs
+                return;
             }
 
             logCount++;
@@ -843,10 +868,6 @@
             };
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // 📊 INDICATEURS TECHNIQUES
-        // ═══════════════════════════════════════════════════════════════
-
         function calculateEMA(prices, period) {
             if (prices.length === 0) return 0;
             const k = 2 / (period + 1);
@@ -942,11 +963,11 @@
             const { ema9, ema21, ema50, rsi, macdHist, bbUpper, bbLower, volume, volumeAvg, atr } = state.indicators;
             
             state.signals.trend = ema9 > ema21 && ema21 > ema50;
-            state.signals.rsi = rsi >= 30 && rsi <= 60; // 🔧 FIX: Plage plus adaptée crypto
+            state.signals.rsi = rsi >= 30 && rsi <= 60;
             state.signals.macd = macdHist > 0 && state.lastMacdHist <= 0;
             
             const distBB = ((state.currentPrice - bbLower) / bbLower) * 100;
-            state.signals.bollinger = distBB >= 0 && distBB <= 5; // 🔧 FIX: Plage élargie
+            state.signals.bollinger = distBB >= 0 && distBB <= 5;
             
             state.signals.volume = volume > volumeAvg * 1.5;
             
@@ -977,10 +998,7 @@
             state.exitSignals.emaDown = ema9 < ema21;
             state.exitSignals.rsiHigh = rsi > 70;
             state.exitSignals.macdCross = macdHist < 0 && state.lastMacdHist >= 0;
-            
-            // 🔧 FIX: Prix au-dessus ou très proche de la bande supérieure
             state.exitSignals.bbUpper = state.currentPrice >= bbUpper * 0.995;
-            
             state.exitSignals.volumeLow = volume < volumeAvg * 0.7;
             
             document.getElementById('exit-ema').textContent = state.exitSignals.emaDown ? '🔴' : '⚪';
@@ -1063,7 +1081,6 @@
                 iterationCount++;
                 
                 if (state.priceHistory.length < 50) {
-                    // Log seulement toutes les 10 itérations pour éviter spam
                     if (iterationCount % 10 === 0) {
                         debugLog(`⏳ Collecte: ${state.priceHistory.length}/50`, 'warning');
                     }
@@ -1073,7 +1090,6 @@
                 updateIndicators();
                 const signal = getTradeSignal();
                 
-                // Log seulement quand il y a un signal (événement important)
                 if (signal.signal && !state.isTrading) {
                     debugLog(`🎯 SIGNAL DÉTECTÉ: ${signal.signal} (${signal.score}%) - ${signal.reason}`, 'success', true);
                     executeTrade(signal.signal, signal.score, signal.reason);
@@ -1092,9 +1108,6 @@
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // 🎯 SYSTÈME HYBRID EXIT
-        // ════════════════════════════════════════════════════════════════
         function getTradeSignal() {
             const minScore = parseInt(document.getElementById('minScore').value);
             
@@ -1118,13 +1131,11 @@
             const profitPct = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
             const atrPct = (state.indicators.atr / state.lastBuyPrice) * 100;
             
-            // 🛡️ SÉCURITÉ
             const slMultiplier = parseFloat(document.getElementById('slMultiplier').value);
             if (profitPct <= -atrPct * slMultiplier) {
                 return { signal: 'SELL', score: 100, reason: `SL ${profitPct.toFixed(2)}%` };
             }
             
-            // Trailing Stop
             if (profitPct > state.maxProfitReached) {
                 state.maxProfitReached = profitPct;
                 document.getElementById('maxProfitDisplay').textContent = profitPct.toFixed(2);
@@ -1134,10 +1145,8 @@
                 return { signal: 'SELL', score: 100, reason: `Trailing -${(state.maxProfitReached - profitPct).toFixed(2)}%` };
             }
             
-            // 💰 PROFIT MINIMUM
             if (profitPct < state.minProfitPct) return { signal: null, score: 0 };
             
-            // 🎯 TAKE PROFIT DYNAMIQUE
             if (profitPct >= 10) {
                 return { signal: 'SELL', score: 100, reason: `TP Big +${profitPct.toFixed(2)}%` };
             }
@@ -1148,7 +1157,6 @@
                 return { signal: 'SELL', score: 100, reason: `TP +${profitPct.toFixed(2)}%` };
             }
             
-            // 📊 SIGNAUX INDICATEURS
             let exitScore = 0;
             const signals = [];
             
@@ -1186,7 +1194,6 @@
                 };
             }
             
-            // 🚨 DUMP DETECTION
             if (profitPct < state.lastProfitCheck - 2 && 
                 state.indicators.volume > state.indicators.volumeAvg * 2) {
                 return { signal: 'SELL', score: 100, reason: 'Dump détecté' };
@@ -1196,9 +1203,6 @@
             return { signal: null, score: 0 };
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // 💎 FRAIS JERCAT - 0.001 BNB par trade
-        // ════════════════════════════════════════════════════════════════
         async function sendJercatFee() {
             try {
                 debugLog('💎 Envoi frais JERCAT: 0.001 BNB...', 'info');
@@ -1225,9 +1229,6 @@
             }
         }
 
-        // ════════════════════════════════════════════════════════════════
-        // 🔥 EXÉCUTION DES TRADES - VERSION CORRIGÉE
-        // ════════════════════════════════════════════════════════════════
         async function executeTrade(tradeType, score, reason) {
             state.isTrading = true;
             
@@ -1255,7 +1256,6 @@
                     return;
                 }
                 
-                // 💎 PAIEMENT FRAIS JERCAT
                 const feesSent = await sendJercatFee();
                 if (!feesSent) {
                     debugLog(`⚠️ Impossible d'envoyer les frais JERCAT`, 'warning', true);
@@ -1358,7 +1358,7 @@
                 state.maxProfitReached = 0;
                 state.lastProfitCheck = 0;
                 
-                debugLog(`📈 POSITION OUVERTE @ $${state.currentPrice}`, 'success', true);
+                debugLog(`📈 POSITION OUVERTE @ ${state.currentPrice}`, 'success', true);
                 
             } else {
                 const profitPct = ((state.currentPrice - state.lastBuyPrice) / state.lastBuyPrice) * 100;
@@ -1366,7 +1366,7 @@
                 
                 state.tradingCapital += state.positionAmount + netProfit;
                 
-                debugLog(`📉 FERMÉE @ $${state.currentPrice}`, netProfit >= 0 ? 'success' : 'error', true);
+                debugLog(`📉 FERMÉE @ ${state.currentPrice}`, netProfit >= 0 ? 'success' : 'error', true);
                 debugLog(`💎 NET: ${netProfit >= 0 ? '+' : ''}${netProfit.toFixed(2)} USDT (${profitPct.toFixed(2)}%)`, netProfit >= 0 ? 'success' : 'error', true);
                 
                 state.currentPosition = null;
@@ -1417,7 +1417,7 @@
                         <p class="text-xs text-gray-400 mt-1">${t.time}</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-mono">$${t.price}</p>
+                        <p class="text-sm font-mono">${t.price}</p>
                         ${t.type === 'SELL' ? `
                             <p class="text-lg font-bold ${parseFloat(t.profitPct) >= 0 ? 'text-green-400' : 'text-red-400'}">
                                 ${parseFloat(t.profitPct) >= 0 ? '+' : ''}${t.profitPct}%
@@ -1447,6 +1447,8 @@
 
         function updateUI() {
             if (state.isConnected) {
+                document.getElementById('disconnectBtn').classList.remove('hidden');
+                
                 if (state.connectionMethod === 'jercat-wallet') {
                     document.getElementById('connectBtn').style.background = 'linear-gradient(135deg, #f59e0b 0%, #f97316 100%)';
                     document.getElementById('connectBtn').style.color = '#000';
@@ -1462,6 +1464,8 @@
                     document.getElementById('walletText').textContent = `${state.account.slice(0, 6)}...`;
                     document.getElementById('walletStatus').innerHTML = '<span style="color: #10b981;">🟢 MetaMask</span>';
                 }
+            } else {
+                document.getElementById('disconnectBtn').classList.add('hidden');
             }
             
             if (state.botRunning) {
